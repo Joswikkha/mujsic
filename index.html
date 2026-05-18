@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Music Playlist Manager</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 700px; margin: 40px auto; padding: 0 20px; background: #f5f5f5; }
+    h1 { text-align: center; color: #333; }
+    .box { background: white; border-radius: 10px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+    input { padding: 8px; margin: 4px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
+    button { padding: 8px 16px; margin: 4px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; color: white; }
+    .btn-add    { background: #4CAF50; }
+    .btn-delete { background: #f44336; }
+    .btn-search { background: #2196F3; }
+    .btn-reverse{ background: #FF9800; }
+    .btn-sort   { background: #9C27B0; }
+    button:hover { opacity: 0.85; }
+    #log { background: #e8f5e9; padding: 10px; border-radius: 6px; font-size: 13px; color: #2e7d32; min-height: 30px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th { background: #333; color: white; padding: 10px; text-align: left; }
+    td { padding: 10px; border-bottom: 1px solid #eee; }
+    tr:hover { background: #f9f9f9; }
+    .pos { color: #999; font-size: 12px; }
+    .empty { text-align: center; color: #aaa; padding: 20px; }
+    .highlight { background: #fff9c4 !important; }
+  </style>
+</head>
+<body>
+
+<h1>🎵 Music Playlist Manager</h1>
+<p style="text-align:center;color:#888;font-size:13px">Data Structure: Doubly Linked List</p>
+
+<!-- Add Song -->
+<div class="box">
+  <b>Add Song</b><br><br>
+  <input id="inp-title"  placeholder="Title"    value="Love Story" />
+  <input id="inp-artist" placeholder="Artist"   value="Taylor Swift" />
+  <input id="inp-dur"    placeholder="Duration" value="3:55" style="width:70px" />
+  <button class="btn-add" onclick="addSong()">+ Add</button>
+</div>
+
+<!-- Operations -->
+<div class="box">
+  <b>Operations</b><br><br>
+  <input id="inp-search" placeholder="Search by title..." />
+  <button class="btn-search" onclick="doSearch()">Search</button>
+  &nbsp;
+  <input id="inp-delete" placeholder="Delete by title..." />
+  <button class="btn-delete" onclick="doDelete()">Delete</button>
+  <br><br>
+  <button class="btn-reverse" onclick="doReverse()">🔄 Reverse Playlist</button>
+  <button class="btn-sort"    onclick="doSort()">🔤 Sort A-Z</button>
+</div>
+
+<!-- Log -->
+<div class="box">
+  <b>Result:</b>
+  <div id="log">Add a song to get started!</div>
+</div>
+
+<!-- Playlist Table -->
+<div class="box">
+  <b>Current Playlist</b>
+  <table id="playlist-table">
+    <thead><tr><th>#</th><th>Title</th><th>Artist</th><th>Duration</th></tr></thead>
+    <tbody id="playlist-body">
+      <tr><td colspan="4" class="empty">No songs yet</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<script>
+// ── Doubly Linked List ──────────────────────────────
+class Node {
+  constructor(title, artist, dur) {
+    this.title = title; this.artist = artist; this.dur = dur;
+    this.prev = null; this.next = null;
+  }
+}
+
+class Playlist {
+  constructor() { this.head = null; this.size = 0; }
+
+  add(title, artist, dur) {
+    const n = new Node(title, artist, dur);
+    if (!this.head) { this.head = n; }
+    else { let c = this.head; while (c.next) c = c.next; c.next = n; n.prev = c; }
+    this.size++;
+  }
+
+  delete(title) {
+    let c = this.head;
+    while (c) {
+      if (c.title === title) {
+        if (c.prev) c.prev.next = c.next; else this.head = c.next;
+        if (c.next) c.next.prev = c.prev;
+        this.size--; return true;
+      }
+      c = c.next;
+    }
+    return false;
+  }
+
+  search(title) {
+    let c = this.head, i = 1;
+    while (c) { if (c.title === title) return { node: c, pos: i }; c = c.next; i++; }
+    return null;
+  }
+
+  reverse() {
+    let c = this.head, tmp = null;
+    while (c) { tmp = c.prev; c.prev = c.next; c.next = tmp; c = c.prev; }
+    if (tmp) this.head = tmp.prev;
+  }
+
+  mergeSort(h) {
+    if (!h || !h.next) return h;
+    let slow = h, fast = h;
+    while (fast.next && fast.next.next) { slow = slow.next; fast = fast.next.next; }
+    const r = slow.next; slow.next = null; if (r) r.prev = null;
+    return this.merge(this.mergeSort(h), this.mergeSort(r));
+  }
+
+  merge(a, b) {
+    if (!a) return b; if (!b) return a;
+    let res;
+    if (a.title <= b.title) { res = a; res.next = this.merge(a.next, b); }
+    else { res = b; res.next = this.merge(a, b.next); }
+    if (res.next) res.next.prev = res;
+    res.prev = null; return res;
+  }
+
+  sort() { this.head = this.mergeSort(this.head); }
+
+  toArray() { const arr = []; let c = this.head; while (c) { arr.push(c); c = c.next; } return arr; }
+}
+
+const pl = new Playlist();
+let highlightTitle = null;
+
+function log(msg, color) {
+  const el = document.getElementById('log');
+  el.textContent = msg;
+  el.style.background = color || '#e8f5e9';
+  el.style.color = color ? '#7b1fa2' : '#2e7d32';
+}
+
+function render(highlightTitle) {
+  const arr = pl.toArray();
+  const tbody = document.getElementById('playlist-body');
+  if (arr.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" class="empty">No songs yet</td></tr>';
+    return;
+  }
+  tbody.innerHTML = arr.map((n, i) =>
+    `<tr class="${highlightTitle === n.title ? 'highlight' : ''}">
+      <td class="pos">${i + 1}</td>
+      <td><b>${n.title}</b></td>
+      <td>${n.artist}</td>
+      <td>${n.dur}</td>
+    </tr>`
+  ).join('');
+}
+
+function addSong() {
+  const t = document.getElementById('inp-title').value.trim();
+  const a = document.getElementById('inp-artist').value.trim();
+  const d = document.getElementById('inp-dur').value.trim();
+  if (!t || !a) { log('Please enter title and artist!', '#fce4ec'); return; }
+  pl.add(t, a, d || '?');
+  log(`✅ Added "${t}" by ${a}  |  Time: O(n)`);
+  render();
+}
+
+function doDelete() {
+  const t = document.getElementById('inp-delete').value.trim();
+  if (!t) { log('Enter a title to delete!', '#fce4ec'); return; }
+  const ok = pl.delete(t);
+  if (ok) log(`🗑️ Deleted "${t}"  |  Time: O(n)`);
+  else log(`❌ "${t}" not found!`, '#fce4ec');
+  render();
+}
+
+function doSearch() {
+  const t = document.getElementById('inp-search').value.trim();
+  if (!t) { log('Enter a title to search!', '#fce4ec'); return; }
+  const res = pl.search(t);
+  if (res) {
+    log(`🔍 Found "${t}" at position ${res.pos}  |  Time: O(n)`, '#e3f2fd');
+    render(t);
+    setTimeout(() => render(), 2000);
+  } else {
+    log(`❌ "${t}" not found!`, '#fce4ec');
+  }
+}
+
+function doReverse() {
+  if (pl.size === 0) { log('Playlist is empty!', '#fce4ec'); return; }
+  pl.reverse();
+  log(`🔄 Playlist reversed!  |  Time: O(n)`);
+  render();
+}
+
+function doSort() {
+  if (pl.size < 2) { log('Need at least 2 songs to sort!', '#fce4ec'); return; }
+  pl.sort();
+  log(`🔤 Sorted A-Z using Merge Sort  |  Time: O(n log n)`, '#f3e5f5');
+  render();
+}
+
+// Preload some songs
+pl.add('Love Story', 'Taylor Swift', '3:55');
+pl.add('Shape of You', 'Ed Sheeran', '3:54');
+pl.add('Levitating', 'Dua Lipa', '3:23');
+render();
+</script>
+</body>
+</html>
